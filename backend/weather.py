@@ -1,4 +1,6 @@
-"""Current weather for a location, via Open-Meteo (free, no API key needed)."""
+"""Current and forecast weather for a location, via Open-Meteo (free, no API key needed)."""
+from datetime import datetime, timedelta
+
 import requests
 
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
@@ -37,3 +39,28 @@ def fetch_weather(origin: str) -> dict:
         "description": description,
         "temp_c": current["temperature_2m"],
     }
+
+
+def fetch_hourly_forecast(origin: str, hours: list[int]) -> dict[int, dict]:
+    """origin is a "lat,lon" string. Returns {hour: {condition, temp_c}} for
+    tomorrow, so it lines up with rush_hour.fetch_hourly_ratios' sampled hours."""
+    lat, lon = origin.split(",")
+    tomorrow = (datetime.now() + timedelta(days=1)).date().isoformat()
+    resp = requests.get(WEATHER_URL, params={
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,weather_code",
+        "start_date": tomorrow,
+        "end_date": tomorrow,
+        "timezone": "Asia/Karachi",
+    }, timeout=10)
+    if resp.status_code != 200:
+        raise WeatherError(f"Open-Meteo API error {resp.status_code}: {resp.text[:200]}")
+
+    hourly = resp.json()["hourly"]
+    forecast = {}
+    for time, temp, code in zip(hourly["time"], hourly["temperature_2m"], hourly["weather_code"]):
+        hour = int(time[11:13])
+        if hour in hours:
+            forecast[hour] = {"condition": _CODES.get(code, f"code {code}"), "temp_c": temp}
+    return forecast

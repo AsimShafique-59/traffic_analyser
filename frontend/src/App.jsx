@@ -27,6 +27,7 @@ function BarChart({ hourly, threshold }) {
               <th>Hour</th>
               <th>Ratio</th>
               <th>Status</th>
+              <th>Weather</th>
             </tr>
           </thead>
           <tbody>
@@ -35,6 +36,7 @@ function BarChart({ hourly, threshold }) {
                 <td>{fmtHour(p.hour)}</td>
                 <td>{p.ratio.toFixed(2)}</td>
                 <td>{p.congested ? "Congested" : "Normal"}</td>
+                <td>{p.weather || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -57,6 +59,7 @@ function BarChart({ hourly, threshold }) {
             <div className="bar-tooltip">
               {fmtHour(p.hour)} — ratio {p.ratio.toFixed(2)} —{" "}
               {p.congested ? "Congested" : "Normal"}
+              {p.weather && ` — ${p.weather}`}
             </div>
             <div
               className={`bar ${p.congested ? "bar-congested" : ""}`}

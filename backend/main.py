@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from geocode import GeocodeError, geocode
 from rush_hour import RushHourError, classify_rush_hours, fetch_hourly_ratios, format_windows
-from weather import WeatherError, fetch_weather
+from weather import WeatherError, fetch_hourly_forecast, fetch_weather
 
 load_dotenv()
 
@@ -36,6 +36,7 @@ class HourlyPoint(BaseModel):
     hour: int
     ratio: float
     congested: bool
+    weather: str | None = None
 
 
 class RushHourResponse(BaseModel):
@@ -67,15 +68,22 @@ def rush_hours(req: RushHourRequest):
     windows = classify_rush_hours(ratios, req.threshold)
 
     weather = None
+    hourly_weather = {}
     try:
         weather = fetch_weather(origin)
+        hourly_weather = fetch_hourly_forecast(origin, [hour for hour, _ in ratios])
     except WeatherError:
         pass  # weather is a bonus, not worth failing the whole request over
 
     return RushHourResponse(
         summary=format_windows(windows),
         hourly=[
-            HourlyPoint(hour=hour, ratio=ratio, congested=ratio > req.threshold)
+            HourlyPoint(
+                hour=hour,
+                ratio=ratio,
+                congested=ratio > req.threshold,
+                weather=hourly_weather.get(hour, {}).get("condition"),
+            )
             for hour, ratio in ratios
         ],
         weather=weather,
