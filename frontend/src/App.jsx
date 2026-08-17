@@ -113,7 +113,7 @@ export default function App() {
         <input
           value={origin}
           onChange={(e) => setOrigin(e.target.value)}
-          placeholder="Origin, e.g. 123 Main Street, Lahore"
+          placeholder="Origin, e.g. Samanabad, Lahore"
           required
         />
         <input

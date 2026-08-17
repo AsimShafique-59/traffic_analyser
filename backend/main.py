@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from geocode import GeocodeError, geocode
 from rush_hour import RushHourError, classify_rush_hours, fetch_hourly_ratios, format_windows
 from weather import WeatherError, fetch_weather
 
@@ -50,7 +51,13 @@ def rush_hours(req: RushHourRequest):
         raise HTTPException(500, "Server is missing TOMTOM_API_KEY")
 
     try:
-        ratios = fetch_hourly_ratios(req.origin, req.destination, api_key)
+        origin = geocode(req.origin)
+        destination = geocode(req.destination)
+    except GeocodeError as e:
+        raise HTTPException(422, str(e))
+
+    try:
+        ratios = fetch_hourly_ratios(origin, destination, api_key)
     except RushHourError as e:
         raise HTTPException(502, str(e))
 
@@ -60,12 +67,10 @@ def rush_hours(req: RushHourRequest):
     windows = classify_rush_hours(ratios, req.threshold)
 
     weather = None
-    weather_key = os.environ.get("OPENWEATHER_API_KEY")
-    if weather_key:
-        try:
-            weather = fetch_weather(req.origin, weather_key)
-        except WeatherError:
-            pass  # weather is a bonus, not worth failing the whole request over
+    try:
+        weather = fetch_weather(origin)
+    except WeatherError:
+        pass  # weather is a bonus, not worth failing the whole request over
 
     return RushHourResponse(
         summary=format_windows(windows),
